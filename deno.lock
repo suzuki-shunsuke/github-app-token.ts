@@ -1,23 +1,9 @@
 {
   "version": "5",
   "specifiers": {
-    "jsr:@std/assert@1": "1.0.15",
-    "jsr:@std/internal@^1.0.12": "1.0.12",
     "npm:@octokit/auth-app@^8.1.2": "8.1.2",
     "npm:@octokit/plugin-rest-endpoint-methods@17": "17.0.0_@octokit+core@7.0.6",
-    "npm:@octokit/request@^10.0.6": "10.0.6",
     "npm:@octokit/rest@^22.0.1": "22.0.1_@octokit+core@7.0.6"
-  },
-  "jsr": {
-    "@std/assert@1.0.15": {
-      "integrity": "d64018e951dbdfab9777335ecdb000c0b4e3df036984083be219ce5941e4703b",
-      "dependencies": [
-        "jsr:@std/internal"
-      ]
-    },
-    "@std/internal@1.0.12": {
-      "integrity": "972a634fd5bc34b242024402972cd5143eac68d8dffaca5eaa4dba30ce17b027"
-    }
   },
   "npm": {
     "@octokit/auth-app@8.1.2": {
@@ -176,10 +162,8 @@
   },
   "workspace": {
     "dependencies": [
-      "jsr:@std/assert@1",
       "npm:@octokit/auth-app@^8.1.2",
       "npm:@octokit/plugin-rest-endpoint-methods@17",
-      "npm:@octokit/request@^10.0.6",
       "npm:@octokit/rest@^22.0.1"
     ]
   }

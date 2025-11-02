@@ -10,7 +10,10 @@ export type Inputs = {
   permissions?: Permissions;
 };
 
-export type Permissions = RestEndpointMethodTypes["apps"]["createInstallationAccessToken"]["parameters"]["permissions"];
+export type Permissions =
+  RestEndpointMethodTypes["apps"]["createInstallationAccessToken"][
+    "parameters"
+  ]["permissions"];
 
 export const create = async (
   inputs: Inputs,
