@@ -3,12 +3,13 @@
 [![JSR](https://jsr.io/badges/@suzuki-shunsuke/github-app-token)](https://jsr.io/@suzuki-shunsuke/github-app-token)
 [![License](http://img.shields.io/badge/license-mit-blue.svg?style=flat-square)](https://raw.githubusercontent.com/suzuki-shunsuke/github-app-token.ts/main/LICENSE)
 
-github-app-token.ts is a JSR package to create and revoke GitHub App installation access tokens.
+github-app-token.ts is a JSR package to create and revoke GitHub App
+installation access tokens.
 
 ## Example
 
 ```ts
-import { create, revoke, hasExpired } from "@suzuki-shunsuke/github-app-token";
+import { create, hasExpired, revoke } from "@suzuki-shunsuke/github-app-token";
 
 // Create a GitHub App installation access token.
 const token = await githubAppToken.create({
