@@ -1,3 +1,30 @@
+/**
+ * This module contains functions to create and revoke GitHub App installation access tokens.
+ *
+ * @example
+ * ```ts
+ * import { create, revoke, hasExpired } from "@suzuki-shunsuke/github-app-token";
+ *
+ * // Create a GitHub App installation access token.
+ * const token = await githubAppToken.create({
+ *   appId: "123456",
+ *   privateKey,
+ *   owner: "suzuki-shunsuke",
+ *   repositories: ["tfcmt"],
+ *   permissions: {
+ *     issues: "write",
+ *   },
+ * });
+ * const octokit = github.getOctokit(token.token);
+ * // Use octokit...
+ * if (!hasExpired(token.expiresAt)) { // Check if the token has expired.
+ *   await revoke(token.token); // Revoke the token.
+ * }
+ * ```
+ *
+ * @module
+ */
+
 import { createAppAuth } from "@octokit/auth-app";
 import { Octokit } from "@octokit/rest";
 import type { RestEndpointMethodTypes } from "@octokit/plugin-rest-endpoint-methods";
