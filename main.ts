@@ -15,9 +15,23 @@ export type Permissions =
     "parameters"
   ]["permissions"];
 
+export type Token = {
+  token: string;
+  expiresAt: string;
+  installationId: number;
+};
+
+/* This function returns true if the token has expired. */
+export const hasExpired = (expiresAt: string): boolean => {
+  const expires = new Date(expiresAt).getTime();
+  const now = Date.now();
+  return now >= expires;
+}
+
+/* This function generates a new installation access token. */
 export const create = async (
   inputs: Inputs,
-): Promise<string> => {
+): Promise<Token> => {
   const appOctokit = new Octokit({
     authStrategy: createAppAuth,
     auth: {
@@ -34,9 +48,14 @@ export const create = async (
     permissions: inputs.permissions,
     repositories: inputs.repositories,
   });
-  return token.data.token;
+  return {
+    token: token.data.token,
+    expiresAt: token.data.expires_at,
+    installationId: installation.data.id,
+  };
 };
 
+/* This function revokes the installation access token. */
 export const revoke = async (
   token: string,
 ): Promise<void> => {
