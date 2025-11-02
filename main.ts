@@ -26,7 +26,7 @@ export const hasExpired = (expiresAt: string): boolean => {
   const expires = new Date(expiresAt).getTime();
   const now = Date.now();
   return now >= expires;
-}
+};
 
 /* This function generates a new installation access token. */
 export const create = async (
