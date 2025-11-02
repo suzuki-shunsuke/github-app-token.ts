@@ -48,14 +48,14 @@ export type Token = {
   installationId: number;
 };
 
-/* This function returns true if the token has expired. */
+/** This function returns true if the token has expired. */
 export const hasExpired = (expiresAt: string): boolean => {
   const expires = new Date(expiresAt).getTime();
   const now = Date.now();
   return now >= expires;
 };
 
-/* This function generates a new installation access token. */
+/** This function generates a new installation access token. */
 export const create = async (
   inputs: Inputs,
 ): Promise<Token> => {
@@ -82,7 +82,7 @@ export const create = async (
   };
 };
 
-/* This function revokes the installation access token. */
+/** This function revokes the installation access token. */
 export const revoke = async (
   token: string,
 ): Promise<void> => {
