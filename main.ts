@@ -83,7 +83,9 @@ export class Tokens {
 }
 
 export type Permissions =
-  RestEndpointMethodTypes["apps"]["createInstallationAccessToken"]["parameters"]["permissions"];
+  RestEndpointMethodTypes["apps"]["createInstallationAccessToken"][
+    "parameters"
+  ]["permissions"];
 
 export type Token = {
   token: string;
