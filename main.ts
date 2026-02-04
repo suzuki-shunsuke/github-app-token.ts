@@ -41,6 +41,9 @@ export interface Logger {
   info(m: string): void;
 }
 
+/**
+ * Tokens is a class to revoke tokens.
+ */
 export class Tokens {
   tokens: Token[];
   logger: Logger;
@@ -51,7 +54,12 @@ export class Tokens {
   push(token: Token): void {
     this.tokens.push(token);
   }
-  async revokes(): Promise<void> {
+  /**
+   * revoke revokes all tokens.
+   * @returns
+   */
+  async revoke(): Promise<void> {
+    const promises: Promise<void>[] = [];
     for (const token of this.tokens) {
       if (hasExpired(token.expiresAt)) {
         this.logger.info(
@@ -59,8 +67,17 @@ export class Tokens {
         );
         continue;
       }
-      this.logger.info("revoking GitHub App token");
-      await revoke(token.token);
+      promises.push(revoke(token.token));
+    }
+    if (promises.length === 0) {
+      return;
+    }
+    this.logger.info(`revoke GitHub App tokens (${promises.length})`);
+    const results = await Promise.allSettled(promises);
+    for (const result of results) {
+      if (result.status === "rejected") {
+        this.logger.info(`failed to revoke token: ${result.reason}`);
+      }
     }
   }
 }
