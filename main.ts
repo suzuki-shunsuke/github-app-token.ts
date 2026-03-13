@@ -37,6 +37,51 @@ export type Inputs = {
   permissions?: Permissions;
 };
 
+export interface Logger {
+  info(m: string): void;
+}
+
+/**
+ * Tokens is a class to revoke tokens.
+ */
+export class Tokens {
+  tokens: Token[];
+  logger: Logger;
+  constructor(logger?: Logger) {
+    this.tokens = [];
+    this.logger = logger || console;
+  }
+  push(token: Token): void {
+    this.tokens.push(token);
+  }
+  /**
+   * revoke revokes all tokens.
+   * @returns
+   */
+  async revoke(): Promise<void> {
+    const promises: Promise<void>[] = [];
+    for (const token of this.tokens) {
+      if (hasExpired(token.expiresAt)) {
+        this.logger.info(
+          "skip revoking GitHub App token as it has already expired",
+        );
+        continue;
+      }
+      promises.push(revoke(token.token));
+    }
+    if (promises.length === 0) {
+      return;
+    }
+    this.logger.info(`revoke GitHub App tokens (${promises.length})`);
+    const results = await Promise.allSettled(promises);
+    for (const result of results) {
+      if (result.status === "rejected") {
+        this.logger.info(`failed to revoke token: ${result.reason}`);
+      }
+    }
+  }
+}
+
 export type Permissions =
   RestEndpointMethodTypes["apps"]["createInstallationAccessToken"][
     "parameters"
@@ -56,9 +101,7 @@ export const hasExpired = (expiresAt: string): boolean => {
 };
 
 /** This function generates a new installation access token. */
-export const create = async (
-  inputs: Inputs,
-): Promise<Token> => {
+export const create = async (inputs: Inputs): Promise<Token> => {
   const appOctokit = new Octokit({
     authStrategy: createAppAuth,
     auth: {
@@ -83,9 +126,7 @@ export const create = async (
 };
 
 /** This function revokes the installation access token. */
-export const revoke = async (
-  token: string,
-): Promise<void> => {
+export const revoke = async (token: string): Promise<void> => {
   const octokit = new Octokit({
     auth: token,
   });
