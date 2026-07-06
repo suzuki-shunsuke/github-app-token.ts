@@ -119,8 +119,8 @@
         "@octokit/types"
       ]
     },
-    "@octokit/request@10.0.10": {
-      "integrity": "sha512-KxNC2pTqqhszMNrf12ZRd4PonRgyJdsM4F/jySiddQK+DsRcfBtUvqn8t7UsyZhnRJHvX46OohDt5N3VqIWC2w==",
+    "@octokit/request@10.0.11": {
+      "integrity": "sha512-+s7HUxjfFqOMS9VlIwDffq0MikjSAK0gSpG73W+meAvVAvX4MBrHYTK5Bj3Uot55qFT4gzUtfzE4mGWY4Br8/Q==",
       "dependencies": [
         "@octokit/endpoint",
         "@octokit/request-error",
@@ -154,8 +154,8 @@
     "json-with-bigint@3.5.8": {
       "integrity": "sha512-eq/4KP6K34kwa7TcFdtvnftvHCD9KvHOGGICWwMFc4dOOKF5t4iYqnfLK8otCRCRv06FXOzGGyqE8h8ElMvvdw=="
     },
-    "toad-cache@3.7.1": {
-      "integrity": "sha512-5DXWzE4Vz7xNHsv+xQ+MGfJYyC78Aok3tEr0MNwHoRf7vZnga1mQXZ4/Nsodld4VR6Wd+VhfmqnNrsRJyYPfrQ=="
+    "toad-cache@3.7.4": {
+      "integrity": "sha512-m1TdR/rvT7kgGJZhspNtXdsdYk0fddFpJJFlG5s+UkPFo6lkLoZ3YLOaovPYjq1R75NP5JfeTlSHaOsE09peCg=="
     },
     "universal-github-app-jwt@2.2.2": {
       "integrity": "sha512-dcmbeSrOdTnsjGjUfAlqNDJrhxXizjAz94ija9Qw8YkZ1uu0d+GoZzyH+Jb9tIIqvGsadUfwg+22k5aDqqwzbw=="
