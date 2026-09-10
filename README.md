@@ -46,6 +46,26 @@ if (!hasExpired(token.expiresAt)) { // Check if the token has expired.
 `create` takes a client authenticated as the app. `revoke` doesn't need one,
 because the token is the only credential it requires.
 
+`create` returns the installation id and the app slug alongside the token, so
+you don't have to ask GitHub for them again.
+
+## Installation targets
+
+`owner` targets the installation of a user or an organization, optionally
+narrowed to `repositories`. `enterprise` targets the installation of an
+enterprise account instead. The two are mutually exclusive, and one of them is
+required, which the types enforce.
+
+```ts
+const token = await create({
+  octokit: appOctokit,
+  enterprise: "example-enterprise",
+  permissions: {
+    issues: "write",
+  },
+});
+```
+
 ## The client
 
 `Client` is declared structurally, covering only the `request` method this
