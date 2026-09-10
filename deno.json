@@ -1,7 +1,7 @@
 {
   "name": "@suzuki-shunsuke/github-app-token",
   "tasks": {},
-  "version": "0.0.4",
+  "version": "0.1.0",
   "exports": "./main.ts",
   "publish": {
     "include": ["LICENSE", "README.md", "main.ts"]
@@ -9,6 +9,7 @@
   "imports": {
     "@octokit/auth-app": "npm:@octokit/auth-app@^8.2.0",
     "@octokit/plugin-rest-endpoint-methods": "npm:@octokit/plugin-rest-endpoint-methods@^18.0.0",
-    "@octokit/rest": "npm:@octokit/rest@^22.0.1"
+    "@octokit/rest": "npm:@octokit/rest@^22.0.1",
+    "@std/assert": "jsr:@std/assert@^1.0.19"
   }
 }
