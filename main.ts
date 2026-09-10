@@ -76,8 +76,8 @@ export type Client = {
 /** Permissions of an installation access token. */
 export type Permissions = components["schemas"]["app-permissions"];
 
-/** Inputs of the create function. */
-export type Inputs = {
+/** Inputs which are common to all installation targets. */
+export type CommonInputs = {
   /**
    * An Octokit client authenticated as a GitHub App.
    *
@@ -85,15 +85,39 @@ export type Inputs = {
    * createJwt callback.
    */
   octokit: Client;
-  owner: string;
-  repositories?: string[];
   permissions?: Permissions;
 };
+
+/** Inputs targeting the installation of a user or an organization. */
+export type OwnerInputs = CommonInputs & {
+  owner: string;
+  /** It defaults to every repository the installation can access. */
+  repositories?: string[];
+  enterprise?: never;
+};
+
+/** Inputs targeting the installation of an enterprise account. */
+export type EnterpriseInputs = CommonInputs & {
+  /** The slug of the enterprise account. */
+  enterprise: string;
+  owner?: never;
+  repositories?: never;
+};
+
+/**
+ * Inputs of the create function.
+ *
+ * owner and enterprise are mutually exclusive.
+ * Either of them must be set.
+ */
+export type Inputs = OwnerInputs | EnterpriseInputs;
 
 export type Token = {
   token: string;
   expiresAt: string;
   installationId: number;
+  /** The slug of the GitHub App, as GitHub reports it for the installation. */
+  appSlug: string;
 };
 
 /** This function returns true if the token has expired. */
@@ -117,13 +141,22 @@ const request = async <T>(
 export const create = async (
   inputs: Inputs,
 ): Promise<Token> => {
-  const installation = await request<components["schemas"]["installation"]>(
-    inputs.octokit,
-    "GET /users/{username}/installation",
-    {
-      username: inputs.owner,
-    },
-  );
+  const installation = inputs.enterprise
+    ? await request<components["schemas"]["installation"]>(
+      inputs.octokit,
+      "GET /enterprises/{enterprise}/installation",
+      {
+        enterprise: inputs.enterprise,
+      },
+    )
+    // This endpoint works for organizations as well as users.
+    : await request<components["schemas"]["installation"]>(
+      inputs.octokit,
+      "GET /users/{username}/installation",
+      {
+        username: inputs.owner,
+      },
+    );
   const token = await request<components["schemas"]["installation-token"]>(
     inputs.octokit,
     "POST /app/installations/{installation_id}/access_tokens",
@@ -137,6 +170,7 @@ export const create = async (
     token: token.token,
     expiresAt: token.expires_at,
     installationId: installation.id,
+    appSlug: installation.app_slug,
   };
 };
 

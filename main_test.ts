@@ -1,6 +1,12 @@
 import { assertEquals, assertRejects } from "@std/assert";
 import { Octokit } from "@octokit/rest";
-import { type Client, create, hasExpired, revoke } from "./main.ts";
+import {
+  type Client,
+  create,
+  hasExpired,
+  type Inputs,
+  revoke,
+} from "./main.ts";
 
 type RequestLog = {
   route: string;
@@ -29,7 +35,7 @@ Deno.test("hasExpired", () => {
 
 Deno.test("create generates an installation access token", async () => {
   const octokit = new FakeClient({
-    "GET /users/{username}/installation": { id: 12345 },
+    "GET /users/{username}/installation": { id: 12345, app_slug: "test-app" },
     "POST /app/installations/{installation_id}/access_tokens": {
       token: "ghs_test",
       expires_at: "2100-01-01T00:00:00Z",
@@ -49,6 +55,7 @@ Deno.test("create generates an installation access token", async () => {
     token: "ghs_test",
     expiresAt: "2100-01-01T00:00:00Z",
     installationId: 12345,
+    appSlug: "test-app",
   });
   assertEquals(octokit.requests, [
     {
@@ -68,7 +75,7 @@ Deno.test("create generates an installation access token", async () => {
 
 Deno.test("create omits permissions and repositories if they aren't set", async () => {
   const octokit = new FakeClient({
-    "GET /users/{username}/installation": { id: 12345 },
+    "GET /users/{username}/installation": { id: 12345, app_slug: "test-app" },
     "POST /app/installations/{installation_id}/access_tokens": {
       token: "ghs_test",
       expires_at: "2100-01-01T00:00:00Z",
@@ -93,6 +100,48 @@ const fakeFetch = (
     requests.push(new Request(String(url), init));
     return Promise.resolve(response);
   }) as typeof globalThis.fetch;
+
+Deno.test("create targets an enterprise installation", async () => {
+  const octokit = new FakeClient({
+    "GET /enterprises/{enterprise}/installation": {
+      id: 54321,
+      app_slug: "test-app",
+    },
+    "POST /app/installations/{installation_id}/access_tokens": {
+      token: "ghs_test",
+      expires_at: "2100-01-01T00:00:00Z",
+    },
+  });
+
+  const token = await create({ octokit, enterprise: "test-enterprise" });
+
+  assertEquals(token.installationId, 54321);
+  assertEquals(octokit.requests[0], {
+    route: "GET /enterprises/{enterprise}/installation",
+    parameters: { enterprise: "test-enterprise" },
+  });
+  assertEquals(octokit.requests[1].parameters?.installation_id, 54321);
+});
+
+Deno.test("Inputs requires either owner or enterprise", () => {
+  const octokit = new FakeClient();
+
+  const withOwner: Inputs = { octokit, owner: "suzuki-shunsuke" };
+  const withEnterprise: Inputs = { octokit, enterprise: "test-enterprise" };
+  // @ts-expect-error owner and enterprise are mutually exclusive.
+  const withBoth: Inputs = {
+    octokit,
+    owner: "suzuki-shunsuke",
+    enterprise: "test-enterprise",
+  };
+  // @ts-expect-error Either owner or enterprise is required.
+  const withNeither: Inputs = { octokit };
+
+  assertEquals(
+    [withOwner, withEnterprise, withBoth, withNeither].length,
+    4,
+  );
+});
 
 Deno.test("revoke revokes the installation access token", async () => {
   const requests: Request[] = [];
