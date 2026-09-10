@@ -1,93 +1,94 @@
 /**
  * This module contains functions to create and revoke GitHub App installation access tokens.
  *
+ * It doesn't authenticate as a GitHub App itself.
+ * You build an Octokit client authenticated as the app and pass it in, so this
+ * module has no runtime dependency and you keep one Octokit in your dependency
+ * tree instead of two.
+ *
  * @example
  * ```ts
- * import { create, revoke, hasExpired } from "@suzuki-shunsuke/github-app-token";
+ * import { Octokit } from "@octokit/rest";
+ * import { createAppAuth } from "@octokit/auth-app";
+ * import { create, hasExpired, revoke } from "@suzuki-shunsuke/github-app-token";
  *
  * // Create a GitHub App installation access token.
+ * const appOctokit = new Octokit({
+ *   authStrategy: createAppAuth,
+ *   auth: {
+ *     appId: "123456",
+ *     privateKey,
+ *   },
+ * });
  * const token = await create({
- *   appId: "123456",
- *   privateKey,
+ *   octokit: appOctokit,
  *   owner: "suzuki-shunsuke",
  *   repositories: ["tfcmt"],
  *   permissions: {
  *     issues: "write",
  *   },
  * });
+ *
  * const octokit = github.getOctokit(token.token);
  * // Use octokit...
  * if (!hasExpired(token.expiresAt)) { // Check if the token has expired.
- *   await revoke(token.token); // Revoke the token.
+ *   await revoke(octokit); // Revoke the token.
  * }
  * ```
  *
  * @example
  * ```ts
- * // Instead of a private key, you can pass a callback signing a JSON Web Token.
- * // This is useful when the private key is stored in a KMS or a HSM and can't be exported.
- * import { create } from "@suzuki-shunsuke/github-app-token";
+ * // When the private key is stored in a KMS or a HSM and can't be exported,
+ * // authenticate the app with a createJwt callback instead of a private key.
  * import { createJwt } from "@suzuki-shunsuke/github-app-jwt-aws-kms";
  *
- * const token = await create({
- *   appId: "123456",
- *   createJwt: createJwt({
- *     keyId: "arn:aws:kms:us-east-1:123456789012:key/00000000-0000-0000-0000-000000000000",
- *   }),
- *   owner: "suzuki-shunsuke",
+ * const appOctokit = new Octokit({
+ *   authStrategy: createAppAuth,
+ *   auth: {
+ *     appId: "123456",
+ *     createJwt: createJwt({
+ *       keyId: "arn:aws:kms:us-east-1:123456789012:key/00000000-0000-0000-0000-000000000000",
+ *     }),
+ *   },
  * });
  * ```
  *
  * @module
  */
 
-import { createAppAuth } from "@octokit/auth-app";
-import type { AppAuthOptions } from "@octokit/auth-app";
-import { Octokit } from "@octokit/rest";
-import type { RestEndpointMethodTypes } from "@octokit/plugin-rest-endpoint-methods";
+import type { components } from "@octokit/openapi-types";
 
 /**
- * A callback creating a JSON Web Token to authenticate as a GitHub App.
+ * The part of an Octokit client which this module uses.
  *
- * It's useful when the private key is stored in a KMS or a HSM and can't be
- * exported.
- * The callback takes an app id and returns a signed JSON Web Token and its
- * expiration date.
+ * Octokit clients from @octokit/rest, @octokit/core and @actions/github all
+ * satisfy this type, so you can simply pass one.
+ * It's declared structurally so that this module has no runtime dependency and
+ * so that you can pass a stub in tests.
  */
-export type CreateJwt = NonNullable<AppAuthOptions["createJwt"]>;
+export type Client = {
+  request: (
+    route: string,
+    parameters?: Record<string, unknown>,
+  ) => Promise<{ data: unknown }>;
+};
 
-/** Inputs which are common to all authentication methods. */
-export type CommonInputs = {
-  appId: string;
+/** Permissions of an installation access token. */
+export type Permissions = components["schemas"]["app-permissions"];
+
+/** Inputs of the create function. */
+export type Inputs = {
+  /**
+   * An Octokit client authenticated as a GitHub App.
+   *
+   * Build it with @octokit/auth-app, passing either a private key or a
+   * createJwt callback.
+   */
+  octokit: Client;
   owner: string;
   repositories?: string[];
   permissions?: Permissions;
 };
-
-/** Inputs authenticating as a GitHub App with a private key. */
-export type PrivateKeyInputs = CommonInputs & {
-  privateKey: string;
-  createJwt?: never;
-};
-
-/** Inputs authenticating as a GitHub App with a createJwt callback. */
-export type CreateJwtInputs = CommonInputs & {
-  createJwt: CreateJwt;
-  privateKey?: never;
-};
-
-/**
- * Inputs of the create function.
- *
- * privateKey and createJwt are mutually exclusive.
- * Either of them must be set.
- */
-export type Inputs = PrivateKeyInputs | CreateJwtInputs;
-
-export type Permissions =
-  RestEndpointMethodTypes["apps"]["createInstallationAccessToken"][
-    "parameters"
-  ]["permissions"];
 
 export type Token = {
   token: string;
@@ -102,40 +103,51 @@ export const hasExpired = (expiresAt: string): boolean => {
   return now >= expires;
 };
 
+const request = async <T>(
+  octokit: Client,
+  route: string,
+  parameters?: Record<string, unknown>,
+): Promise<T> => {
+  const response = await octokit.request(route, parameters);
+  // The route determines the response body, which Octokit types as any.
+  return response.data as T;
+};
+
 /** This function generates a new installation access token. */
 export const create = async (
   inputs: Inputs,
 ): Promise<Token> => {
-  const appOctokit = new Octokit({
-    authStrategy: createAppAuth,
-    auth: {
-      appId: inputs.appId,
-      privateKey: inputs.privateKey,
-      createJwt: inputs.createJwt,
+  const installation = await request<components["schemas"]["installation"]>(
+    inputs.octokit,
+    "GET /users/{username}/installation",
+    {
+      username: inputs.owner,
     },
-  });
-
-  const installation = await appOctokit.rest.apps.getUserInstallation({
-    username: inputs.owner,
-  });
-  const token = await appOctokit.rest.apps.createInstallationAccessToken({
-    installation_id: installation.data.id,
-    permissions: inputs.permissions,
-    repositories: inputs.repositories,
-  });
+  );
+  const token = await request<components["schemas"]["installation-token"]>(
+    inputs.octokit,
+    "POST /app/installations/{installation_id}/access_tokens",
+    {
+      installation_id: installation.id,
+      permissions: inputs.permissions,
+      repositories: inputs.repositories,
+    },
+  );
   return {
-    token: token.data.token,
-    expiresAt: token.data.expires_at,
-    installationId: installation.data.id,
+    token: token.token,
+    expiresAt: token.expires_at,
+    installationId: installation.id,
   };
 };
 
-/** This function revokes the installation access token. */
+/**
+ * This function revokes the installation access token.
+ *
+ * Pass an Octokit client authenticated with the installation access token
+ * itself, not one authenticated as the app.
+ */
 export const revoke = async (
-  token: string,
+  octokit: Client,
 ): Promise<void> => {
-  const octokit = new Octokit({
-    auth: token,
-  });
-  await octokit.rest.apps.revokeInstallationAccessToken();
+  await octokit.request("DELETE /installation/token");
 };
