@@ -32,7 +32,7 @@
  * const octokit = github.getOctokit(token.token);
  * // Use octokit...
  * if (!hasExpired(token.expiresAt)) { // Check if the token has expired.
- *   await revoke(octokit); // Revoke the token.
+ *   await revoke(token.token); // Revoke the token.
  * }
  * ```
  *
@@ -140,14 +140,34 @@ export const create = async (
   };
 };
 
+/** The default GitHub API base URL. */
+const defaultBaseUrl = "https://api.github.com";
+
 /**
  * This function revokes the installation access token.
  *
- * Pass an Octokit client authenticated with the installation access token
- * itself, not one authenticated as the app.
+ * It doesn't need an Octokit client, as the token is the only credential
+ * required.
+ * Pass baseUrl on GitHub Enterprise Server.
  */
 export const revoke = async (
-  octokit: Client,
+  token: string,
+  baseUrl: string = defaultBaseUrl,
 ): Promise<void> => {
-  await octokit.request("DELETE /installation/token");
+  const response = await fetch(
+    `${baseUrl.replace(/\/+$/, "")}/installation/token`,
+    {
+      method: "DELETE",
+      headers: {
+        authorization: `Bearer ${token}`,
+        accept: "application/vnd.github+json",
+        "x-github-api-version": "2022-11-28",
+      },
+    },
+  );
+  if (!response.ok) {
+    throw new Error(
+      `failed to revoke the installation access token: ${response.status} ${response.statusText}`,
+    );
+  }
 };

@@ -1,4 +1,4 @@
-import { assertEquals } from "@std/assert";
+import { assertEquals, assertRejects } from "@std/assert";
 import { Octokit } from "@octokit/rest";
 import { type Client, create, hasExpired, revoke } from "./main.ts";
 
@@ -84,14 +84,69 @@ Deno.test("create omits permissions and repositories if they aren't set", async 
   });
 });
 
+/** This function replaces globalThis.fetch with a fake one and records requests. */
+const withFakeFetch = async (
+  response: Response,
+  fn: (requests: Request[]) => Promise<void>,
+): Promise<void> => {
+  const requests: Request[] = [];
+  const original = globalThis.fetch;
+  globalThis.fetch = ((url: string | URL | Request, init?: RequestInit) => {
+    requests.push(new Request(String(url), init));
+    return Promise.resolve(response);
+  }) as typeof fetch;
+  try {
+    await fn(requests);
+  } finally {
+    globalThis.fetch = original;
+  }
+};
+
 Deno.test("revoke revokes the installation access token", async () => {
-  const octokit = new FakeClient();
+  await withFakeFetch(
+    new Response(null, { status: 204 }),
+    async (requests) => {
+      await revoke("ghs_test");
 
-  await revoke(octokit);
+      assertEquals(requests.length, 1);
+      assertEquals(
+        requests[0].url,
+        "https://api.github.com/installation/token",
+      );
+      assertEquals(requests[0].method, "DELETE");
+      assertEquals(
+        requests[0].headers.get("authorization"),
+        "Bearer ghs_test",
+      );
+    },
+  );
+});
 
-  assertEquals(octokit.requests, [
-    { route: "DELETE /installation/token", parameters: undefined },
-  ]);
+Deno.test("revoke honours a GitHub Enterprise Server base URL", async () => {
+  await withFakeFetch(
+    new Response(null, { status: 204 }),
+    async (requests) => {
+      await revoke("ghs_test", "https://github.example.com/api/v3/");
+
+      assertEquals(
+        requests[0].url,
+        "https://github.example.com/api/v3/installation/token",
+      );
+    },
+  );
+});
+
+Deno.test("revoke fails if GitHub rejects the request", async () => {
+  await withFakeFetch(
+    new Response(null, { status: 401, statusText: "Unauthorized" }),
+    async () => {
+      await assertRejects(
+        () => revoke("ghs_test"),
+        Error,
+        "failed to revoke the installation access token: 401",
+      );
+    },
+  );
 });
 
 Deno.test("real Octokit clients satisfy the Client type", () => {

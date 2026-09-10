@@ -39,12 +39,12 @@ const octokit = github.getOctokit(token.token);
 // Use octokit...
 
 if (!hasExpired(token.expiresAt)) { // Check if the token has expired.
-  await revoke(octokit); // Revoke the token.
+  await revoke(token.token); // Revoke the token.
 }
 ```
 
-`create` takes a client authenticated as the app, and `revoke` takes one
-authenticated with the installation access token itself.
+`create` takes a client authenticated as the app. `revoke` doesn't need one,
+because the token is the only credential it requires.
 
 ## The client
 
@@ -62,7 +62,12 @@ export type Client = {
 
 Clients from `@octokit/rest`, `@octokit/core` and `@actions/github` all satisfy
 it, so you can pass whichever you already have. On GitHub Enterprise Server the
-base URL comes from the client you pass, so nothing here needs configuring.
+base URL of `create` comes from the client you pass; `revoke` takes it as an
+optional second argument.
+
+```ts
+await revoke(token.token, "https://github.example.com/api/v3");
+```
 
 ## Private keys in a KMS or a HSM
 
@@ -91,15 +96,13 @@ const appOctokit = new Octokit({
 
 ## Migrating from 0.1.0
 
-`create` no longer takes `appId`, `privateKey` or `createJwt`, and `revoke` now
-takes a client instead of a token string. Authentication moved to the caller,
-which is what removes `@octokit/auth-app` and `@octokit/rest` from this
-package's dependencies.
+`create` no longer takes `appId`, `privateKey` or `createJwt`. Authentication
+moved to the caller, which is what removes `@octokit/auth-app` and
+`@octokit/rest` from this package's dependencies. `revoke` is unchanged.
 
 ```ts
 // 0.1.0
 const token = await create({ appId, privateKey, owner });
-await revoke(token.token);
 
 // 0.2.0
 const appOctokit = new Octokit({
@@ -107,7 +110,6 @@ const appOctokit = new Octokit({
   auth: { appId, privateKey },
 });
 const token = await create({ octokit: appOctokit, owner });
-await revoke(github.getOctokit(token.token));
 ```
 
 `Permissions` is now derived from `@octokit/openapi-types` rather than
