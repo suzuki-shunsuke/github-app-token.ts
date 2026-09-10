@@ -61,12 +61,19 @@ export type Client = {
 ```
 
 Clients from `@octokit/rest`, `@octokit/core` and `@actions/github` all satisfy
-it, so you can pass whichever you already have. On GitHub Enterprise Server the
-base URL of `create` comes from the client you pass; `revoke` takes it as an
-optional second argument.
+it, so you can pass whichever you already have.
+
+`create` inherits everything from the client you pass, including the base URL on
+GitHub Enterprise Server and any proxy setting. `revoke` has no client to
+inherit from, so it takes both as options.
 
 ```ts
-await revoke(token.token, "https://github.example.com/api/v3");
+import { getProxyFetch } from "@actions/github/lib/utils";
+
+await revoke(token.token, {
+  baseUrl: "https://github.example.com/api/v3",
+  fetch: getProxyFetch(baseUrl),
+});
 ```
 
 ## Private keys in a KMS or a HSM
@@ -98,7 +105,8 @@ const appOctokit = new Octokit({
 
 `create` no longer takes `appId`, `privateKey` or `createJwt`. Authentication
 moved to the caller, which is what removes `@octokit/auth-app` and
-`@octokit/rest` from this package's dependencies. `revoke` is unchanged.
+`@octokit/rest` from this package's dependencies. `revoke` keeps its signature
+and gains an options argument.
 
 ```ts
 // 0.1.0

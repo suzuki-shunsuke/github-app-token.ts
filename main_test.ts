@@ -84,68 +84,54 @@ Deno.test("create omits permissions and repositories if they aren't set", async 
   });
 });
 
-/** This function replaces globalThis.fetch with a fake one and records requests. */
-const withFakeFetch = async (
+/** This function creates a fake fetch which records requests. */
+const fakeFetch = (
+  requests: Request[],
   response: Response,
-  fn: (requests: Request[]) => Promise<void>,
-): Promise<void> => {
-  const requests: Request[] = [];
-  const original = globalThis.fetch;
-  globalThis.fetch = ((url: string | URL | Request, init?: RequestInit) => {
+): typeof globalThis.fetch =>
+  ((url: string | URL | Request, init?: RequestInit) => {
     requests.push(new Request(String(url), init));
     return Promise.resolve(response);
-  }) as typeof fetch;
-  try {
-    await fn(requests);
-  } finally {
-    globalThis.fetch = original;
-  }
-};
+  }) as typeof globalThis.fetch;
 
 Deno.test("revoke revokes the installation access token", async () => {
-  await withFakeFetch(
-    new Response(null, { status: 204 }),
-    async (requests) => {
-      await revoke("ghs_test");
+  const requests: Request[] = [];
 
-      assertEquals(requests.length, 1);
-      assertEquals(
-        requests[0].url,
-        "https://api.github.com/installation/token",
-      );
-      assertEquals(requests[0].method, "DELETE");
-      assertEquals(
-        requests[0].headers.get("authorization"),
-        "Bearer ghs_test",
-      );
-    },
-  );
+  await revoke("ghs_test", {
+    fetch: fakeFetch(requests, new Response(null, { status: 204 })),
+  });
+
+  assertEquals(requests.length, 1);
+  assertEquals(requests[0].url, "https://api.github.com/installation/token");
+  assertEquals(requests[0].method, "DELETE");
+  assertEquals(requests[0].headers.get("authorization"), "Bearer ghs_test");
 });
 
 Deno.test("revoke honours a GitHub Enterprise Server base URL", async () => {
-  await withFakeFetch(
-    new Response(null, { status: 204 }),
-    async (requests) => {
-      await revoke("ghs_test", "https://github.example.com/api/v3/");
+  const requests: Request[] = [];
 
-      assertEquals(
-        requests[0].url,
-        "https://github.example.com/api/v3/installation/token",
-      );
-    },
+  await revoke("ghs_test", {
+    baseUrl: "https://github.example.com/api/v3/",
+    fetch: fakeFetch(requests, new Response(null, { status: 204 })),
+  });
+
+  assertEquals(
+    requests[0].url,
+    "https://github.example.com/api/v3/installation/token",
   );
 });
 
 Deno.test("revoke fails if GitHub rejects the request", async () => {
-  await withFakeFetch(
-    new Response(null, { status: 401, statusText: "Unauthorized" }),
-    async () => {
-      await assertRejects(
-        () => revoke("ghs_test"),
-        Error,
-        "failed to revoke the installation access token: 401",
-      );
-    },
+  await assertRejects(
+    () =>
+      revoke("ghs_test", {
+        fetch: fakeFetch(
+          [],
+          new Response(null, { status: 401, statusText: "Unauthorized" }),
+        ),
+      }),
+    Error,
+    "failed to revoke the installation access token: 401",
   );
 });
 

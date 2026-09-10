@@ -143,18 +143,33 @@ export const create = async (
 /** The default GitHub API base URL. */
 const defaultBaseUrl = "https://api.github.com";
 
+/** Options of the revoke function. */
+export type RevokeOptions = {
+  /** The GitHub API base URL. It defaults to https://api.github.com. */
+  baseUrl?: string;
+  /**
+   * A fetch function.
+   *
+   * It defaults to globalThis.fetch.
+   * Pass one behind a proxy, such as @actions/github's getProxyFetch, as
+   * revoke has no client to inherit the setting from.
+   */
+  fetch?: typeof globalThis.fetch;
+};
+
 /**
  * This function revokes the installation access token.
  *
  * It doesn't need an Octokit client, as the token is the only credential
  * required.
- * Pass baseUrl on GitHub Enterprise Server.
  */
 export const revoke = async (
   token: string,
-  baseUrl: string = defaultBaseUrl,
+  options: RevokeOptions = {},
 ): Promise<void> => {
-  const response = await fetch(
+  const baseUrl = options.baseUrl ?? defaultBaseUrl;
+  const fetchFn = options.fetch ?? globalThis.fetch;
+  const response = await fetchFn(
     `${baseUrl.replace(/\/+$/, "")}/installation/token`,
     {
       method: "DELETE",
